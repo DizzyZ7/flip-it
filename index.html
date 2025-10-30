@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Memory Game Deluxe — animation edition</title>
+<title>Memory Game — fixed shake & precise timer</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; transition: background 0.35s, color 0.35s; }
 body { font-family: 'Poppins', sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:20px; }
@@ -44,24 +44,16 @@ body.light .game-info { background: rgba(0,0,0,0.06); }
 .card-front { background: linear-gradient(45deg, #ff7e5f, #feb47b); }
 .card-back { background: #fff; color:#222; transform: rotateY(180deg); }
 
-.card .card-back { visibility: hidden; }
-.card.flipped .card-back { visibility: visible; }
-.card .card-front { visibility: visible; }
-.card.flipped .card-front { visibility: hidden; }
-
+/* Убираем visibility-трюки — показываем/скрываем путем вращения (rotateY) */
 .card.matched .card-back {
   background: linear-gradient(45deg,#00c9ff,#92fe9d);
   color:#000;
   animation: glow 1s ease;
 }
 
-@keyframes glow {
-  0%{box-shadow:0 0 5px #00ffcc}
-  50%{box-shadow:0 0 30px #00ffcc}
-  100%{box-shadow:0 0 5px #00ffcc}
-}
+@keyframes glow { 0%{box-shadow:0 0 5px #00ffcc} 50%{box-shadow:0 0 30px #00ffcc} 100%{box-shadow:0 0 5px #00ffcc} }
 
-/* 🔄 Покачивание при ошибке */
+/* 🔄 Покачивание при ошибке теперь применяется к .card (внешний элемент) — не ломает rotateY */
 @keyframes shake {
   0% { transform: translateX(0); }
   25% { transform: translateX(-6px); }
@@ -69,7 +61,7 @@ body.light .game-info { background: rgba(0,0,0,0.06); }
   75% { transform: translateX(-4px); }
   100% { transform: translateX(0); }
 }
-.card.shake .card-inner { animation: shake 0.4s ease; }
+.card.shake { animation: shake 0.4s ease; }
 
 .victory { animation: victoryFlash 1.5s ease; }
 @keyframes victoryFlash {
@@ -119,34 +111,53 @@ document.addEventListener('DOMContentLoaded', () => {
   let matchedPairs = 0;
   let lockBoard = false;
   let totalPairs = 8;
-  let timer = null;
-  let seconds = 0;
 
+  // таймеры/таймауты — храним id чтобы очищать
+  let revealTimeout = null;
+  let hideTimeout = null;
+  let timerStartTimeout = null;
+  let intervalId = null;
+  let startTime = 0;
+
+  // EMOJIS (с котиком вместо помидора)
   const emojis = ['🍎','🍌','🍇','🍊','🍓','🍒','🍑','🍍','🥝','🍉','🥥','🍋','🍈','🍏','🍐','🥕','🐱','🌽','🥦','🧄','🧅','🥔','🍠','🍞','🥨','🧀','🍗','🍖','🍤','🍣','🍕','🍔','🍟','🌭','🥪','🥗','🍝','🍰','🍪','🍩','🍿','🧊','🍫','🍬','🍭','🥧','🥮','🍯','☕','🍵','🍺','🍸','🍷','🍹'];
 
-  function initGame(size=4) {
-    clearInterval(timer);
-    seconds = 0;
+  function clearTimers() {
+    if (revealTimeout) { clearTimeout(revealTimeout); revealTimeout = null; }
+    if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+    if (timerStartTimeout) { clearTimeout(timerStartTimeout); timerStartTimeout = null; }
+    if (intervalId) { clearInterval(intervalId); intervalId = null; }
+  }
+
+  function startPreciseTimer() {
+    startTime = Date.now();
+    // show immediately 0
     timerDisplay.textContent = 0;
+    // use a single interval to update display each second using Date.now()
+    intervalId = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      timerDisplay.textContent = elapsed;
+    }, 1000);
+  }
+
+  function initGame(size = 4) {
+    // clear previous timers/intervals to avoid duplicates
+    clearTimers();
+
+    // reset state
     moves = 0;
     matchedPairs = 0;
     flippedCards = [];
     cards = [];
-    lockBoard = false;
-
-    totalPairs = (size * size) / 2;
+    lockBoard = true; // блокируем клики пока идёт reveal
     movesDisplay.textContent = 0;
     matchesDisplay.textContent = 0;
+    timerDisplay.textContent = 0;
     gameBoard.innerHTML = '';
 
-    // start timer after reveal animation
-    setTimeout(() => {
-      timer = setInterval(() => {
-        seconds++;
-        timerDisplay.textContent = seconds;
-      }, 1000);
-    }, 1500);
+    totalPairs = (size * size) / 2;
 
+    // prepare cards
     const chosen = emojis.slice(0, totalPairs);
     const gameCards = [...chosen, ...chosen].sort(() => Math.random() - 0.5);
     gameBoard.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
@@ -166,13 +177,26 @@ document.addEventListener('DOMContentLoaded', () => {
       cards.push(card);
     });
 
-    // 👀 Show all cards briefly
-    setTimeout(() => cards.forEach(c => c.classList.add('flipped')), 100);
-    setTimeout(() => cards.forEach(c => c.classList.remove('flipped')), 1100);
+    // Reveal: показать все карты на короткое время, затем скрыть и запустить таймер.
+    // Используем цепочку таймаутов и сохраняем их id, чтобы при новом initGame можно было их отменить.
+    // Небольшая задержка перед показом (чтобы DOM успел отрисоваться)
+    revealTimeout = setTimeout(() => {
+      cards.forEach(c => c.classList.add('flipped'));
+      // через 1000ms скрываем
+      hideTimeout = setTimeout(() => {
+        cards.forEach(c => c.classList.remove('flipped'));
+        // после скрытия запускаем таймер и разрешаем клики
+        startPreciseTimer();
+        lockBoard = false;
+      }, 1000);
+    }, 100);
+
   }
 
   function flipCard() {
-    if (lockBoard || this.classList.contains('flipped') || this.classList.contains('matched')) return;
+    if (lockBoard) return;
+    if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
+
     this.classList.add('flipped');
     flippedCards.push(this);
 
@@ -187,7 +211,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function checkForMatch() {
     const [c1, c2] = flippedCards;
     const match = c1.dataset.emoji === c2.dataset.emoji;
-    match ? markMatched() : shakeAndUnflip();
+    if (match) {
+      markMatched();
+    } else {
+      shakeAndUnflip();
+    }
   }
 
   function markMatched() {
@@ -200,24 +228,29 @@ document.addEventListener('DOMContentLoaded', () => {
     resetRound();
 
     if (matchedPairs === totalPairs) {
-      clearInterval(timer);
+      // победа
+      if (intervalId) { clearInterval(intervalId); intervalId = null; }
       document.body.classList.add('victory');
       setTimeout(() => {
-        alert(`🎉 You won in ${moves} moves and ${seconds}s!`);
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        alert(`🎉 You won in ${moves} moves and ${elapsed}s!`);
         document.body.classList.remove('victory');
       }, 500);
     }
   }
 
   function shakeAndUnflip() {
+    // добавляем shake к внешней карточке, чтобы не ломать .card-inner transform
     flippedCards.forEach(c => c.classList.add('shake'));
+
+    // подождём, пока animation завершится (0.4s), затем убрать shake и скрыть карты
     setTimeout(() => {
       flippedCards.forEach(c => {
         c.classList.remove('shake');
-        c.classList.remove('flipped');
+        c.classList.remove('flipped'); // закрываем
       });
       resetRound();
-    }, 800);
+    }, 420); // чуть больше чем 0.4s, чтобы анимация успела закончиться
   }
 
   function resetRound() {
@@ -225,8 +258,13 @@ document.addEventListener('DOMContentLoaded', () => {
     lockBoard = false;
   }
 
-  restartButton.addEventListener('click', () => initGame(parseInt(levelSelect.value)));
-  levelSelect.addEventListener('change', () => initGame(parseInt(levelSelect.value)));
+  // события управления
+  restartButton.addEventListener('click', () => {
+    initGame(parseInt(levelSelect.value));
+  });
+  levelSelect.addEventListener('change', () => {
+    initGame(parseInt(levelSelect.value));
+  });
 
   // THEME SWITCH
   function setTheme(mode) {
@@ -243,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('theme') || 'dark';
   setTheme(savedTheme);
 
+  // старт
   initGame();
 });
 </script>

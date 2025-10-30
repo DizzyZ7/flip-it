@@ -1,192 +1,83 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Memory Game Deluxe</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Memory Game Deluxe — animation edition</title>
 <style>
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  transition: background 0.5s, color 0.5s;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; transition: background 0.35s, color 0.35s; }
+body { font-family: 'Poppins', sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:20px; }
 
-body {
-  font-family: 'Poppins', sans-serif;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 20px;
-}
+/* THEMES */
+body.dark { background: radial-gradient(circle at top left, #6a11cb, #2575fc); color:#fff; }
+body.light { background: radial-gradient(circle at top left, #f9f9f9, #ececec); color:#333; }
 
-/* === DARK THEME === */
-body.dark {
-  background: radial-gradient(circle at top left, #6a11cb, #2575fc);
-  color: #fff;
-}
+h1 { margin:20px 0; font-weight:700; text-shadow:2px 2px 8px rgba(0,0,0,0.25); font-size:2.2rem; }
 
-/* === LIGHT THEME === */
-body.light {
-  background: radial-gradient(circle at top left, #f9f9f9, #ececec);
-  color: #333;
-}
+.controls { display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap; justify-content:center; }
+select, button { padding:10px 14px; border-radius:8px; border:none; font-size:1rem; cursor:pointer; transition:0.2s; }
+select { background: rgba(255,255,255,0.95); color:#222; }
+button { background:#ff4081; color:#fff; box-shadow:0 4px 10px rgba(0,0,0,0.2); }
+button:hover { transform:translateY(-2px); }
+.theme-toggle { background:transparent; font-size:1.4rem; border:none; cursor:pointer; color:inherit; }
 
-h1 {
-  margin: 20px 0;
-  font-weight: 700;
-  text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
-  font-size: 2.2rem;
-}
+/* info */
+.game-info { font-size:1.05rem; background: rgba(0,0,0,0.18); padding:8px 12px; border-radius:10px; margin-bottom:14px; display:flex; gap:12px; }
+body.light .game-info { background: rgba(0,0,0,0.06); }
 
-.controls {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-  margin-bottom: 15px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
+/* board */
+.game-board { display:grid; gap:10px; width:90vmin; max-width:900px; }
 
-select, button {
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: none;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-select {
-  background: rgba(255,255,255,0.9);
-  color: #333;
-}
-
-button {
-  background: #ff4081;
-  color: white;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-}
-
-button:hover {
-  transform: translateY(-2px);
-  background: #f50057;
-}
-
-.theme-toggle {
-  background: transparent;
-  font-size: 1.5rem;
-  border: none;
-  cursor: pointer;
-  color: inherit;
-}
-
-/* === GAME INFO === */
-.game-info {
-  font-size: 1.1rem;
-  background: rgba(0,0,0,0.25);
-  padding: 8px 15px;
-  border-radius: 10px;
-  margin-bottom: 15px;
-  display: flex;
-  gap: 15px;
-}
-
-body.light .game-info {
-  background: rgba(0,0,0,0.05);
-}
-
-/* === BOARD === */
-.game-board {
-  display: grid;
-  gap: 10px;
-  width: 90vmin;
-  max-width: 900px;
-}
-
-.card {
-  position: relative;
-  background: transparent;
-  perspective: 1000px;
-  cursor: pointer;
-}
-
-.card-inner {
-  position: relative;
-  width: 100%;
-  padding-top: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.5s;
-}
-
-.card.flipped .card-inner {
-  transform: rotateY(180deg);
-}
+/* card */
+.card { position:relative; perspective:1000px; cursor:pointer; }
+.card-inner { position:relative; width:100%; padding-top:100%; transform-style:preserve-3d; transition: transform 0.5s; -webkit-transform-style: preserve-3d; }
+.card.flipped .card-inner { transform: rotateY(180deg); }
 
 .card-face {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  border-radius:12px; display:flex; align-items:center; justify-content:center;
   font-size: clamp(1.5rem, 3vmin, 3rem);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.25);
+  -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.22);
 }
 
-body.dark .card-front {
-  background: linear-gradient(45deg, #ff7e5f, #feb47b);
-}
+.card-front { background: linear-gradient(45deg, #ff7e5f, #feb47b); }
+.card-back { background: #fff; color:#222; transform: rotateY(180deg); }
 
-body.dark .card-back {
-  background: #fff;
-  color: #222;
-}
-
-body.light .card-front {
-  background: linear-gradient(45deg, #a8edea, #fed6e3);
-}
-
-body.light .card-back {
-  background: #fff;
-  color: #222;
-}
+.card .card-back { visibility: hidden; }
+.card.flipped .card-back { visibility: visible; }
+.card .card-front { visibility: visible; }
+.card.flipped .card-front { visibility: hidden; }
 
 .card.matched .card-back {
-  background: linear-gradient(45deg, #00c9ff, #92fe9d);
-  color: #000;
+  background: linear-gradient(45deg,#00c9ff,#92fe9d);
+  color:#000;
   animation: glow 1s ease;
 }
 
 @keyframes glow {
-  0% { box-shadow: 0 0 5px #00ffcc; }
-  50% { box-shadow: 0 0 30px #00ffcc; }
-  100% { box-shadow: 0 0 5px #00ffcc; }
+  0%{box-shadow:0 0 5px #00ffcc}
+  50%{box-shadow:0 0 30px #00ffcc}
+  100%{box-shadow:0 0 5px #00ffcc}
 }
 
-.victory {
-  animation: victoryFlash 1.5s ease;
+/* 🔄 Покачивание при ошибке */
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
 }
+.card.shake .card-inner { animation: shake 0.4s ease; }
 
+.victory { animation: victoryFlash 1.5s ease; }
 @keyframes victoryFlash {
-  0%,100% { background: radial-gradient(circle, #6a11cb, #2575fc); }
-  50% { background: radial-gradient(circle, #00c9ff, #92fe9d); }
+  0%,100%{ background: radial-gradient(circle,#6a11cb,#2575fc); }
+  50%{ background: radial-gradient(circle,#00c9ff,#92fe9d); }
 }
 
-@media (max-width: 600px) {
-  .game-info {
-    font-size: 0.9rem;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-}
+@media (max-width:600px){ .game-info{ font-size:0.9rem; justify-content:center; } }
 </style>
 </head>
 <body>
@@ -231,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let timer = null;
   let seconds = 0;
 
-  const emojis = ['🍎','🍌','🍇','🍊','🍓','🍒','🍑','🍍','🥝','🍉','🥥','🍋','🍈','🍏','🍐','🥕','🍅','🌽','🥦','🧄','🧅','🥔','🍠','🍞','🥨','🧀','🍗','🍖','🍤','🍣','🍕','🍔','🍟','🌭','🥪','🥗','🍝','🍰','🍪','🍩','🍿','🧊','🍫','🍬','🍭','🥧','🥮','🍯','☕','🍵','🍺','🍸','🍷','🍹'];
+  const emojis = ['🍎','🍌','🍇','🍊','🍓','🍒','🍑','🍍','🥝','🍉','🥥','🍋','🍈','🍏','🍐','🥕','🐱','🌽','🥦','🧄','🧅','🥔','🍠','🍞','🥨','🧀','🍗','🍖','🍤','🍣','🍕','🍔','🍟','🌭','🥪','🥗','🍝','🍰','🍪','🍩','🍿','🧊','🍫','🍬','🍭','🥧','🥮','🍯','☕','🍵','🍺','🍸','🍷','🍹'];
 
   function initGame(size=4) {
     clearInterval(timer);
@@ -248,16 +139,16 @@ document.addEventListener('DOMContentLoaded', () => {
     matchesDisplay.textContent = 0;
     gameBoard.innerHTML = '';
 
-    // start timer
-    timer = setInterval(() => {
-      seconds++;
-      timerDisplay.textContent = seconds;
-    }, 1000);
+    // start timer after reveal animation
+    setTimeout(() => {
+      timer = setInterval(() => {
+        seconds++;
+        timerDisplay.textContent = seconds;
+      }, 1000);
+    }, 1500);
 
-    // prepare cards
     const chosen = emojis.slice(0, totalPairs);
     const gameCards = [...chosen, ...chosen].sort(() => Math.random() - 0.5);
-
     gameBoard.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
 
     gameCards.forEach(emoji => {
@@ -274,6 +165,10 @@ document.addEventListener('DOMContentLoaded', () => {
       gameBoard.appendChild(card);
       cards.push(card);
     });
+
+    // 👀 Show all cards briefly
+    setTimeout(() => cards.forEach(c => c.classList.add('flipped')), 100);
+    setTimeout(() => cards.forEach(c => c.classList.remove('flipped')), 1100);
   }
 
   function flipCard() {
@@ -292,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function checkForMatch() {
     const [c1, c2] = flippedCards;
     const match = c1.dataset.emoji === c2.dataset.emoji;
-    match ? markMatched() : unflipCards();
+    match ? markMatched() : shakeAndUnflip();
   }
 
   function markMatched() {
@@ -314,9 +209,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function unflipCards() {
+  function shakeAndUnflip() {
+    flippedCards.forEach(c => c.classList.add('shake'));
     setTimeout(() => {
-      flippedCards.forEach(c => c.classList.remove('flipped'));
+      flippedCards.forEach(c => {
+        c.classList.remove('shake');
+        c.classList.remove('flipped');
+      });
       resetRound();
     }, 800);
   }
@@ -329,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
   restartButton.addEventListener('click', () => initGame(parseInt(levelSelect.value)));
   levelSelect.addEventListener('change', () => initGame(parseInt(levelSelect.value)));
 
-  // === THEME SWITCH ===
+  // THEME SWITCH
   function setTheme(mode) {
     document.body.className = mode;
     localStorage.setItem('theme', mode);
@@ -341,11 +240,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(current === 'dark' ? 'light' : 'dark');
   });
 
-  // Load saved theme
   const savedTheme = localStorage.getItem('theme') || 'dark';
   setTheme(savedTheme);
 
-  // Start game
   initGame();
 });
 </script>
